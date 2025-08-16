@@ -14,7 +14,7 @@ COPY *.go ./
 
 # Build
 # RUN CGO_ENABLED=0 GOOS=linux go build -o homeservice
-RUN --mount=type=cache,target=/root/.cache/go-build go build -o homeservice
+RUN --mount=type=cache,target=/root/.cache/go-build CGO_ENABLED=0 go build -o homeservice
 
 FROM gcr.io/distroless/static-debian12 AS runner
 
