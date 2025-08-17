@@ -27,8 +27,8 @@ func main() {
 
 func wake(c *gin.Context) {
 	if packet, err := NewMagicPacket(os.Getenv("DESKTOP_MAC")); err == nil {
-		packet.Send("255.255.255.255")          // send to broadcast
-		packet.SendPort("255.255.255.255", "7") // specify receiving port
+		packet.Send("192.168.100.255")          // send to broadcast
+		// packet.SendPort("192.168.100.255", "9") // specify receiving port
 	}
 	c.Status(http.StatusNoContent)
 	// c.JSON(http.StatusNoContent, nil)
