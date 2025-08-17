@@ -4,6 +4,8 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"sync"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -18,6 +20,8 @@ func main() {
 		// panic(err)
 	}
 
+	go statusCheck()
+
 	router := gin.Default()
 	router.GET("/wake", wake)
 	router.GET("/status", status)
@@ -25,9 +29,41 @@ func main() {
 	router.Run("0.0.0.0:8080")
 }
 
+// A mutex is used to protect it from concurrent access issues.
+var (
+	server_up     bool
+	pinger_status *probing.Statistics
+	mu            sync.Mutex
+)
+
+// var pinger_status = make(chan *probing.Statistics)
+
+func statusCheck() {
+	// var up = false
+	pinger, err := probing.NewPinger(os.Getenv("DESKTOP_IP"))
+	if err != nil {
+		panic(err)
+	}
+	pinger.Interval = 1 * time.Minute
+	// pinger.Count = 100
+	pinger.OnRecv = func(pkt *probing.Packet) {
+		mu.Lock()
+		server_up = true
+		pinger_status = pinger.Statistics()
+		mu.Unlock()
+	}
+	pinger.OnRecvError = func(err error) {
+		mu.Lock()
+		server_up = false
+		pinger_status = pinger.Statistics()
+		mu.Unlock()
+	}
+	pinger.Run() // blocks
+}
+
 func wake(c *gin.Context) {
 	if packet, err := NewMagicPacket(os.Getenv("DESKTOP_MAC")); err == nil {
-		packet.Send("192.168.100.255")          // send to broadcast
+		packet.Send("192.168.100.255") // send to broadcast
 		// packet.SendPort("192.168.100.255", "9") // specify receiving port
 	}
 	c.Status(http.StatusNoContent)
@@ -35,16 +71,17 @@ func wake(c *gin.Context) {
 }
 
 func status(c *gin.Context) {
-	pinger, err := probing.NewPinger(os.Getenv("DESKTOP_IP"))
-	if err != nil {
-		panic(err)
-	}
-	pinger.Count = 4
-	pinger.Run()                 // blocks until finished
-	stats := pinger.Statistics() // get send/receive/rtt stats
-	var up = stats.PacketLoss < 0.5
+	// Acquire the lock to safely read the shared variable.
+	mu.Lock()
+	stats := pinger_status
+	up := server_up
+	mu.Unlock()
+
+	// var up = stats.PacketLoss < 0.5
 	c.JSON(http.StatusOK, gin.H{
-		"up":          up,
-		"packet_loss": stats.PacketLoss,
+		"up":               up,
+		"packet_loss":      stats.PacketLoss,
+		"packets_sent":     stats.PacketsSent,
+		"packets_received": stats.PacketsRecv,
 	})
 }
