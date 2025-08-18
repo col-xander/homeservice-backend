@@ -46,24 +46,32 @@ func statusCheck() {
 	}
 	pinger.Interval = 1 * time.Minute
 	// pinger.Count = 100
+	pinger.OnSend = func(p *probing.Packet) {
+		mu.Lock()
+		server_up = false
+		pinger_status = pinger.Statistics()
+		mu.Unlock()
+	}
 	pinger.OnRecv = func(pkt *probing.Packet) {
 		mu.Lock()
 		server_up = true
 		pinger_status = pinger.Statistics()
 		mu.Unlock()
 	}
-	pinger.OnRecvError = func(err error) {
-		mu.Lock()
-		server_up = false
-		pinger_status = pinger.Statistics()
-		mu.Unlock()
-	}
+	// pinger.OnRecvError = func(err error) {
+	// 	mu.Lock()
+	// 	server_up = false
+	// 	// fmt.Println(err)
+	// 	pinger_status = pinger.Statistics()
+	// 	mu.Unlock()
+	// }
 	pinger.Run() // blocks
 }
 
 func wake(c *gin.Context) {
 	if packet, err := NewMagicPacket(os.Getenv("DESKTOP_MAC")); err == nil {
-		packet.Send("192.168.100.255") // send to broadcast
+		packet.Send("255.255.255.255") // send to broadcast
+		// packet.Send("192.168.100.255") // send to broadcast
 		// packet.SendPort("192.168.100.255", "9") // specify receiving port
 	}
 	c.Status(http.StatusNoContent)
