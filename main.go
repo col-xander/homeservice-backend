@@ -70,7 +70,7 @@ func statusCheck() {
 
 func wake(c *gin.Context) {
 	if packet, err := NewMagicPacket(os.Getenv("DESKTOP_MAC")); err == nil {
-		packet.Send("255.255.255.255") // send to broadcast
+		packet.Send(os.Getenv("DESKTOP_WOL_BROADCAST")) // send to broadcast
 		// packet.Send("192.168.100.255") // send to broadcast
 		// packet.SendPort("192.168.100.255", "9") // specify receiving port
 	}
